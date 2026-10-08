@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Floating Ball</title>
+<style>
+:root{--bg:#10243a;--bg2:#17375a;--ink:#f4f7fb;--mute:#9fb6cf;--ball:#ffb703;--ballink:#10243a;--card:#f4f7fb;--cardink:#10243a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a1726}}
+:root[data-theme="dark"]{--bg:#0a1726}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{background:linear-gradient(160deg,var(--bg),var(--bg2));color:var(--ink);font-family:"Kantumruy Pro","Noto Sans Khmer",system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+main{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+h1{font-size:1.5rem;margin:0 0 8px;font-weight:600}
+p{color:var(--mute);margin:0;max-width:30ch;line-height:1.5}
+#ball{position:fixed;left:16px;top:40%;width:60px;height:60px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffd56b,var(--ball));border:0;box-shadow:0 6px 18px rgba(0,0,0,.4);touch-action:none;cursor:grab;z-index:10}
+#ball::after{content:"";position:absolute;inset:16px;border-radius:50%;background:var(--ballink);opacity:.85}
+#menu{position:fixed;width:230px;background:var(--card);color:var(--cardink);border-radius:18px;padding:16px;box-shadow:0 12px 32px rgba(0,0,0,.45);z-index:9;display:none}
+#menu.open{display:block;animation:pop .15s ease-out}
+@keyframes pop{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){#menu.open{animation:none}}
+.lbl{font-size:.8rem;opacity:.7}
+#time{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums;margin:2px 0}
+#date{font-size:.85rem;margin-bottom:14px}
+.btn{width:100%;padding:12px;border:0;border-radius:12px;background:var(--cardink);color:var(--card);font:inherit;font-weight:600;cursor:pointer}
+.btn:focus-visible,#ball:focus-visible{outline:3px solid #4da3ff;outline-offset:2px}
+#shot{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
+#shot.open{display:flex}
+#shot img{max-width:100%;max-height:70%;border-radius:10px;-webkit-user-select:auto;user-select:auto}
+#shot .btn{width:auto;padding:12px 28px;background:var(--ball);color:var(--ballink)}
+#msg{color:var(--ink);font-size:.9rem;text-align:center}
+</style>
+</head>
+<body>
+<main id="page">
+  <h1>Floating Ball</h1>
+  <p>Tap the yellow ball to open the menu. Drag it anywhere you like.</p>
+</main>
+
+<button id="ball" aria-label="Open menu"></button>
+
+<div id="menu" role="dialog" aria-label="Menu">
+  <div class="lbl">Cambodia time (UTC+7)</div>
+  <div id="time">--:--:--</div>
+  <div id="date"></div>
+  <button class="btn" id="snap">Take screenshot</button>
+</div>
+
+<div id="shot">
+  <div id="msg">Press and hold the picture, then choose Save image.</div>
+  <img id="out" alt="Screenshot">
+  <button class="btn" id="close">Close</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(function(){
+  var ball=document.getElementById('ball'),menu=document.getElementById('menu');
+  var timeEl=document.getElementById('time'),dateEl=document.getElementById('date');
+  var shot=document.getElementById('shot'),out=document.getElementById('out'),msg=document.getElementById('msg');
+  var tf=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Phnom_Penh',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  var df=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Phnom_Penh',weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  function tick(){var n=new Date();timeEl.textContent=tf.format(n);dateEl.textContent=df.format(n)}
+  tick();setInterval(tick,1000);
+
+  function placeMenu(){
+    var r=ball.getBoundingClientRect(),w=230,h=menu.offsetHeight||150;
+    var x=r.left+r.width/2>innerWidth/2?r.left-w-10:r.right+10;
+    x=Math.max(8,Math.min(innerWidth-w-8,x));
+    var y=Math.max(8,Math.min(innerHeight-h-8,r.top));
+    menu.style.left=x+'px';menu.style.top=y+'px';
+  }
+  function toggle(){
+    if(menu.classList.contains('open')){menu.classList.remove('open')}
+    else{menu.classList.add('open');placeMenu()}
+  }
+
+  var sx,sy,ox,oy,moved=false,drag=false;
+  ball.addEventListener('pointerdown',function(e){
+    drag=true;moved=false;sx=e.clientX;sy=e.clientY;
+    var r=ball.getBoundingClientRect();ox=r.left;oy=r.top;
+    ball.setPointerCapture(e.pointerId);
+  });
+  ball.addEventListener('pointermove',function(e){
+    if(!drag)return;
+    var dx=e.clientX-sx,dy=e.clientY-sy;
+    if(Math.abs(dx)+Math.abs(dy)>6)moved=true;
+    if(moved){
+      ball.style.left=Math.max(0,Math.min(innerWidth-60,ox+dx))+'px';
+      ball.style.top=Math.max(0,Math.min(innerHeight-60,oy+dy))+'px';
+      if(menu.classList.contains('open'))placeMenu();
+    }
+  });
+  ball.addEventListener('pointerup',function(){
+    drag=false;
+    if(!moved)toggle();
+  });
+
+  document.getElementById('snap').addEventListener('click',function(){
+    menu.classList.remove('open');ball.style.visibility='hidden';
+    setTimeout(function(){
+      html2canvas(document.body,{backgroundColor:null}).then(function(c){
+        out.src=c.toDataURL('image/png');
+        msg.textContent='Press and hold the picture, then choose Save image.';
+        shot.classList.add('open');
+      }).catch(function(){
+        out.removeAttribute('src');
+        msg.textContent='Screenshot failed. Please try again.';
+        shot.classList.add('open');
+      }).then(function(){ball.style.visibility='visible'});
+    },120);
+  });
+  document.getElementById('close').addEventListener('click',function(){shot.classList.remove('open')});
+})();
+</script>
+</body>
+</html>
